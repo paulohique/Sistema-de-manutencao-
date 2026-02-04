@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: glpi-manutencao-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-glpi_password_secure}
+      MYSQL_DATABASE: ${DB_NAME:-glpi_manutencao}
+      MYSQL_USER: ${DB_USER:-glpi_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-glpi_password_secure}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - glpi-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-glpi_password_secure}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  python-api:
+    build:
+      context: ./python-api
+      dockerfile: Dockerfile
+    container_name: glpi-manutencao-api
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-glpi_user}
+      DB_PASSWORD: ${DB_PASSWORD:-glpi_password_secure}
+      DB_NAME: ${DB_NAME:-glpi_manutencao}
+      GLPI_BASE_URL: ${GLPI_BASE_URL}
+      GLPI_APP_TOKEN: ${GLPI_APP_TOKEN}
+      GLPI_USER_TOKEN: ${GLPI_USER_TOKEN}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      MAINTENANCE_INTERVAL_DAYS: ${MAINTENANCE_INTERVAL_DAYS:-365}
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - glpi-network
+    volumes:
+      - ./python-api:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  mysql_data:
+
+networks:
+  glpi-network:
+    driver: bridge
