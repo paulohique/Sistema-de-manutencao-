@@ -1,5 +1,5 @@
 -- Script de inicialização do banco de dados
--- Criado automaticamente pelo Docker Compose
+-- Usado para inicializar configurações do banco
 
 USE glpi_manutencao;
 

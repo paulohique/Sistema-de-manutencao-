@@ -31,13 +31,6 @@ Set-Location "c:\Users\paulo\OneDrive\Documentos\Project"
 Get-Content .\python-api\reset_glpi_user_password.sql | & "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -uroot -p
 ```
 
-### Docker
-
-```bash
-# No diretório raiz do projeto
-docker-compose up -d
-```
-
 ## 📡 Endpoints
 
 ### Sincronização GLPI
@@ -117,8 +110,4 @@ Exemplo: se a mensagem mostrar `(172.16.1.254)`, é esse IP que precisa ser perm
 
 ## 📝 Logs
 
-Os logs são salvos em `stdout` e podem ser visualizados com:
-
-```bash
-docker-compose logs -f python-api
-```
+Os logs são salvos em `stdout`.

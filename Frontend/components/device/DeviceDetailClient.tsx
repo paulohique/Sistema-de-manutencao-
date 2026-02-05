@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -170,7 +171,14 @@ export function DeviceDetailClient({ deviceId }: { deviceId: string }) {
   if (error) {
     return (
       <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-        Erro: {error}
+        <div className="flex items-center justify-between gap-3">
+          <div>Erro: {error}</div>
+          {String(error).toLowerCase().includes("não autenticado") ? (
+            <Link className="underline font-semibold" href="/login">
+              Ir para login
+            </Link>
+          ) : null}
+        </div>
       </div>
     );
   }

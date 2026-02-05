@@ -6,7 +6,7 @@ from sqlalchemy import text
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from database import engine
+from app.core.database import engine
 
 
 def main() -> None:

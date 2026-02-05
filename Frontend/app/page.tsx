@@ -1,9 +1,11 @@
 import { loadDevices } from "@/controllers/devicesController";
+import { loadDashboardMetrics } from "@/controllers/dashboardController";
 import { type DevicesQuery } from "@/models/device";
-import { MaintenanceModal } from "@/components/dashboard/MaintenanceModal";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { DashboardPies } from "@/components/dashboard/DashboardPies";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,6 +28,17 @@ export default async function Page({
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
   const hasBackend = Boolean(process.env.NEXT_PUBLIC_PY_API_URL);
+
+  const metrics = await loadDashboardMetrics();
+  const totalComputers = metrics?.total_computers ?? 0;
+  const preventiveDone = metrics?.preventive_done_computers ?? 0;
+  const preventiveNeeded = metrics?.preventive_needed_computers ?? 0;
+  const correctiveDone = metrics?.corrective_done_total ?? 0;
+
+  const preventivePct = preventiveNeeded > 0
+    ? Math.round((preventiveDone / preventiveNeeded) * 100)
+    : 0;
+
   const tab = normalizeTab(
     typeof searchParams?.tab === "string" ? searchParams?.tab : undefined
   );
@@ -61,9 +74,27 @@ export default async function Page({
             Gerencie a manutenção preventiva e corretiva de todos os dispositivos
           </p>
         </div>
-
-        <MaintenanceModal defaultNextDueDays={365} />
       </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard
+          title="Preventivas Realizadas"
+          value={`${preventiveDone} / ${preventiveNeeded}`}
+          subtitle={preventiveNeeded > 0 ? `${preventivePct}% concluído` : "—"}
+        />
+        <StatCard
+          title="Total de Computadores"
+          value={String(totalComputers)}
+          subtitle={hasBackend ? "Espelho local do GLPI" : "Backend não configurado"}
+        />
+        <StatCard
+          title="Corretivas Realizadas"
+          value={String(correctiveDone)}
+          subtitle="Registros no banco local"
+        />
+      </div>
+
+      <DashboardPies metrics={metrics} />
 
       <div className="rounded-xl bg-white p-1.5 shadow-sm border border-gray-200">
         <Tabs value={tab}>

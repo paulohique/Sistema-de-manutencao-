@@ -1,15 +1,13 @@
 import os
-from sqlalchemy import create_engine, text
+import sys
 
-# Defaults match python-api/config.py typical values
-DB_USER = os.environ.get("DB_USER", "glpi_user")
-DB_PASSWORD = os.environ.get("DB_PASSWORD", "0000")
-DB_HOST = os.environ.get("DB_HOST", "127.0.0.1")
-DB_PORT = os.environ.get("DB_PORT", "3306")
-DB_NAME = os.environ.get("DB_NAME", "glpi_manutencao")
+from sqlalchemy import text
 
-url = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
-engine = create_engine(url)
+
+# Ensure python-api is on sys.path when running from repo root
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+from app.core.database import engine
 
 with engine.connect() as c:
     computers = c.execute(text("select count(*) from computers")).scalar()

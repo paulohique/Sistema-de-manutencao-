@@ -8,6 +8,20 @@ Sistema de manutenções com **espelho local** do GLPI:
 
 ## Rodar (Windows)
 
+## Login (LDAP/AD)
+
+O projeto tem uma tela de login em `/login` que autentica no **Active Directory via LDAP** e recebe um JWT.
+
+- Backend: `POST /api/auth/login` (bind LDAP + emite JWT)
+- Frontend: salva o token no `localStorage` e envia `Authorization: Bearer <token>` nos endpoints de escrita.
+
+Configuração necessária no `python-api/.env` (baseado em [python-api/.env.example](python-api/.env.example)):
+
+- `JWT_SECRET` (obrigatório)
+- `LDAP_SERVER` (obrigatório)
+- `LDAP_BASE_DN` (recomendado)
+- `LDAP_DOMAIN` (opcional)
+
 ### 1) Popular o MySQL com dados do GLPI
 
 Dentro de `python-api/`:

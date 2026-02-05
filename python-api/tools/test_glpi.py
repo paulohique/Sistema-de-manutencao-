@@ -7,7 +7,7 @@ import httpx
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from config import settings
+from app.core.config import settings
 
 
 async def main() -> None:
