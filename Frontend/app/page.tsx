@@ -1,8 +1,10 @@
 import { loadDevices } from "@/controllers/devicesController";
 import { loadDashboardMetrics } from "@/controllers/dashboardController";
+import { loadMaintenanceReport } from "@/controllers/reportController";
 import { type DevicesQuery } from "@/models/device";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { DashboardPies } from "@/components/dashboard/DashboardPies";
+import { ReportClient } from "@/components/report/ReportClient";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,8 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-function normalizeTab(tab?: string): DevicesQuery["tab"] {
-  if (tab === "preventiva" || tab === "corretiva" || tab === "dispositivos") return tab;
+type Tab = "dispositivos" | "preventiva" | "corretiva" | "relatorio";
+
+function normalizeTab(tab?: string): Tab {
+  if (tab === "preventiva" || tab === "corretiva" || tab === "dispositivos" || tab === "relatorio") return tab;
   return "dispositivos";
 }
 
@@ -49,12 +53,13 @@ export default async function Page({
   );
   const pageSize = 10;
 
-  const query: DevicesQuery = { tab, q, page, pageSize };
-  const data = await loadDevices(query);
+  const data = tab === "relatorio"
+    ? undefined
+    : await loadDevices({ tab: tab as DevicesQuery["tab"], q, page, pageSize });
 
-  const from = data.total === 0 ? 0 : (data.page - 1) * data.pageSize + 1;
-  const to = Math.min(data.total, data.page * data.pageSize);
-  const pages = Math.max(1, Math.ceil(data.total / data.pageSize));
+  const from = data ? (data.total === 0 ? 0 : (data.page - 1) * data.pageSize + 1) : 0;
+  const to = data ? Math.min(data.total, data.page * data.pageSize) : 0;
+  const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
   const mkHref = (next: Partial<DevicesQuery>) => {
     const params = new URLSearchParams();
@@ -64,6 +69,17 @@ export default async function Page({
     params.set("page", String(next.page ?? page));
     return `/?${params.toString()}`;
   };
+
+  const reportFrom = typeof searchParams?.from === "string" ? searchParams.from : "";
+  const reportTo = typeof searchParams?.to === "string" ? searchParams.to : "";
+  const reportTypeRaw = typeof searchParams?.maintenance_type === "string" ? searchParams.maintenance_type : "Ambas";
+  const reportType = (reportTypeRaw === "Preventiva" || reportTypeRaw === "Corretiva" || reportTypeRaw === "Ambas")
+    ? reportTypeRaw
+    : "Ambas";
+
+  const report = tab === "relatorio"
+    ? await loadMaintenanceReport({ from: reportFrom, to: reportTo, maintenance_type: reportType })
+    : null;
 
   return (
     <div className="space-y-8">
@@ -112,10 +128,20 @@ export default async function Page({
                 Manutenção Corretiva
               </Link>
             </TabsTrigger>
+            <TabsTrigger asChild value="relatorio">
+              <Link href="/?tab=relatorio">Relatório</Link>
+            </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
+      {tab === "relatorio" ? (
+        <ReportClient
+          rows={report?.items ?? []}
+          total={report?.total ?? 0}
+          filters={{ from: reportFrom, to: reportTo, maintenance_type: reportType as any }}
+        />
+      ) : (
       <div className="rounded-xl border border-gray-200 bg-white shadow-lg">
         <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white p-6">
           <form className="flex w-full gap-3" action="/" method="get">
@@ -149,7 +175,7 @@ export default async function Page({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.items.map((row) => (
+              {(data?.items ?? []).map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="font-semibold">{row.device_name}</TableCell>
                   <TableCell>
@@ -170,7 +196,7 @@ export default async function Page({
                   </TableCell>
                 </TableRow>
               ))}
-              {data.items.length === 0 ? (
+              {(data?.items ?? []).length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-12 text-gray-500">
                     <div className="flex flex-col items-center gap-2">
@@ -192,7 +218,7 @@ export default async function Page({
 
           <div className="mt-4 flex items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              Mostrando {from} - {to} de {data.total}
+              Mostrando {from} - {to} de {data?.total ?? 0}
             </p>
 
             <div className="flex items-center gap-2">
@@ -208,6 +234,7 @@ export default async function Page({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

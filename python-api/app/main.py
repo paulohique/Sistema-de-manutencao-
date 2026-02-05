@@ -10,6 +10,7 @@ from app.controllers.dashboard_controller import router as dashboard_router
 from app.controllers.devices_controller import router as devices_router
 from app.controllers.health_controller import router as health_router
 from app.controllers.maintenance_controller import router as maintenance_router
+from app.controllers.reports_controller import router as reports_router
 from app.controllers.sync_controller import router as sync_router
 from app.core.config import settings
 from app.core.database import Base, engine
@@ -43,4 +44,5 @@ app.include_router(sync_router)
 app.include_router(dashboard_router)
 app.include_router(devices_router)
 app.include_router(maintenance_router)
+app.include_router(reports_router)
 app.include_router(health_router)

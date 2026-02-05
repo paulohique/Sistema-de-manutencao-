@@ -43,7 +43,7 @@ export function PiePanel({
         {subtitle ? <div className="text-xs text-gray-500">{subtitle}</div> : null}
       </div>
 
-      <div className="h-56 w-full">
+      <div className="h-56 w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Tooltip
