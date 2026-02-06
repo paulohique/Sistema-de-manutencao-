@@ -54,7 +54,13 @@ security = HTTPBearer(auto_error=False)
 def get_current_user(
     creds: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> Dict[str, Any]:
-    _require_auth_enabled()
+    # Modo temporário: permite desativar a exigência de autenticação via env.
+    # Mantém o resto do código/rotas intacto e facilita reativar no futuro.
+    if not settings.AUTH_ENABLED:
+        return {
+            "sub": "anonymous",
+            "auth_disabled": True,
+        }
 
     if not creds or not creds.credentials:
         raise HTTPException(status_code=401, detail="Não autenticado")

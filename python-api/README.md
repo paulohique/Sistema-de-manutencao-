@@ -100,6 +100,21 @@ Entre em **Configurar/Setup → Geral/General → API → Clientes da API (API c
 
 Exemplo: se a mensagem mostrar `(172.16.1.254)`, é esse IP que precisa ser permitido.
 
+## 🔓 Rodar sem autenticação (temporário)
+
+Se você quiser usar os endpoints (ex: criar/editar manutenções) **sem precisar autenticar** por enquanto,
+defina no arquivo `python-api/.env`:
+
+```env
+AUTH_ENABLED=false
+```
+
+Quando quiser reativar a autenticação no futuro, basta voltar para:
+
+```env
+AUTH_ENABLED=true
+```
+
 ## 🎯 Próximos Passos
 
 - [ ] Autenticação JWT
