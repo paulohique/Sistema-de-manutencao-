@@ -4,7 +4,7 @@ Projeto full-stack criado para apoiar a empresa onde atuo: identifiquei uma nece
 
 O objetivo é reduzir retrabalho e dar visibilidade: o GLPI continua sendo o inventário, e este sistema cuida do **processo de manutenção**, histórico e relatórios.
 
-## ✨ O que este projeto resolve
+## O que este projeto resolve
 
 - Mantém um **espelho local (MySQL)** dos computadores do GLPI via sincronização.
 - Integração com o GLPI é **somente leitura (GET)**: nada é alterado no GLPI.
@@ -12,7 +12,7 @@ O objetivo é reduzir retrabalho e dar visibilidade: o GLPI continua sendo o inv
 - Traz **dashboard/indicadores** e **relatórios** para apoiar a gestão.
 - Possui **login com JWT** e **permissões** por usuário (RBAC + granular).
 
-## 🧱 Arquitetura (visão rápida)
+## Arquitetura (visão rápida)
 
 - **Frontend**: Next.js (App Router) + TypeScript + Tailwind.
 - **Backend**: FastAPI + SQLAlchemy.
@@ -23,7 +23,9 @@ Fluxo de dados:
 
 1) Sync lê dados do GLPI → 2) persiste em MySQL → 3) app consulta o espelho local → 4) notas/manutenções são gravadas **somente no MySQL**.
 
-## 📸 Screenshots
+## Screenshots
+
+![Login](docs/screenshots/login.png)
 
 ![Tela principal](docs/screenshots/principal.png)
 
@@ -31,22 +33,20 @@ Fluxo de dados:
 
 ![Administração](docs/screenshots/admin.png)
 
-![Login](docs/screenshots/login.png)
-
-## 🔐 Autenticação
+## Autenticação
 
 - Login padrão é **local** (tabela de usuários no banco) e emite JWT.
 - Existe suporte opcional para LDAP/AD (controlado por variável de ambiente), mas o login local continua disponível.
 
 Usuário inicial (seed): **admin/admin**.
 
-## 🗄️ Modelagem e “anti-duplicação” do sync
+## Modelagem e integridade do sync
 
 - A chave estável do dispositivo é o `glpi_id`.
 - O banco tem `glpi_id` como **UNIQUE** para impedir duplicidade.
 - O sync é idempotente: se o nome do PC mudar no GLPI, o registro é **atualizado**, não duplicado.
 
-## 🚀 Como rodar (Windows)
+## Como rodar (Windows)
 
 ### Pré-requisitos
 
@@ -116,12 +116,12 @@ npm run dev
 
 Mais detalhes: [Frontend/README.md](Frontend/README.md)
 
-## 🧪 Dicas de operação
+## Dicas de operação
 
 - Se a API do GLPI bloquear seu IP (`ERROR_NOT_ALLOWED_IP`), você precisa liberar o IP do servidor que roda o backend no cliente da API do GLPI.
 - Para rodar sync automático 1x por dia, existe um script em [python-api/tools/daily_sync.sh](python-api/tools/daily_sync.sh).
 
-## 📌 Para recrutadores
+## Para recrutadores
 
 Este repositório demonstra:
 
@@ -130,6 +130,6 @@ Este repositório demonstra:
 - Frontend moderno com Next.js, rotas protegidas e UX orientada a permissões
 - Preocupação com confiabilidade (sync idempotente + constraints no banco)
 
-## 📄 Licença
+## Licença
 
 Defina a licença conforme sua necessidade (ex.: MIT) antes de publicar externamente.
