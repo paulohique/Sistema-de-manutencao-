@@ -12,6 +12,7 @@ export default async function DeviceDetailPage({ params }: Props) {
 
   const me = await getMeServer();
   const permissions = me?.permissions ?? {};
+  const technicianName = me?.display_name || me?.username || "";
 
   return (
     <div className="space-y-6">
@@ -32,7 +33,7 @@ export default async function DeviceDetailPage({ params }: Props) {
         </div>
       </div>
 
-      <DeviceDetailClient deviceId={id} permissions={permissions as any} />
+      <DeviceDetailClient deviceId={id} permissions={permissions as any} technicianName={technicianName} />
     </div>
   );
 }

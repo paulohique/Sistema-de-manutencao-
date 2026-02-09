@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ComputerBase(BaseModel):
@@ -60,10 +60,18 @@ class ComponentOut(ComponentBase):
 class MaintenanceCreate(BaseModel):
     computer_id: int
     maintenance_type: str = Field(..., pattern="^(Preventiva|Corretiva)$")
-    description: str
+    description: str = Field(..., min_length=1)
     performed_at: datetime
     technician: Optional[str] = None
     next_due_days: Optional[int] = None
+
+    @field_validator("description")
+    @classmethod
+    def _description_required(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("Descrição é obrigatória")
+        return v
 
 
 class MaintenanceUpdate(BaseModel):
@@ -72,6 +80,16 @@ class MaintenanceUpdate(BaseModel):
     performed_at: Optional[datetime] = None
     technician: Optional[str] = None
     next_due_days: Optional[int] = None
+
+    @field_validator("description")
+    @classmethod
+    def _description_if_provided(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            raise ValueError("Descrição é obrigatória")
+        return v
 
 
 class MaintenanceOut(BaseModel):

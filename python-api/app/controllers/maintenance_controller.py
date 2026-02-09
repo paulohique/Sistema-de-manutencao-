@@ -19,8 +19,21 @@ router = APIRouter(tags=["maintenance"])
 async def create_maintenance_endpoint(
     maintenance: MaintenanceCreate,
     db: Session = Depends(get_db),
-    _user=Depends(require_permission("add_maintenance")),
+    user=Depends(require_permission("add_maintenance")),
 ):
+    # Sempre atribui o técnico ao usuário autenticado.
+    # Ignora qualquer valor enviado pelo cliente para evitar spoofing.
+    technician = (user.get("display_name") or user.get("sub") or "").strip() or None
+    if technician:
+        try:
+            maintenance.technician = technician  # pydantic mutável na prática (v1/v2 default)
+        except Exception:
+            # fallback para modelos imutáveis (caso alterem config)
+            if hasattr(maintenance, "model_copy"):
+                maintenance = maintenance.model_copy(update={"technician": technician})
+            else:
+                maintenance = maintenance.copy(update={"technician": technician})
+
     created = create_maintenance(db, maintenance)
     if not created:
         raise HTTPException(status_code=404, detail="Computador não encontrado")

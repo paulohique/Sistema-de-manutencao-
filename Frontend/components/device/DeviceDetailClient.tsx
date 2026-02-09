@@ -40,9 +40,11 @@ function statusVariant(status?: string | null) {
 export function DeviceDetailClient({
   deviceId,
   permissions,
+  technicianName,
 }: {
   deviceId: string;
   permissions?: Partial<Permissions>;
+  technicianName?: string;
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +63,6 @@ export function DeviceDetailClient({
   const [maintDescription, setMaintDescription] = useState("");
   const [maintPerformedAt, setMaintPerformedAt] = useState("");
   const [maintNextDays, setMaintNextDays] = useState(365);
-  const [maintTech, setMaintTech] = useState("");
   const [savingMaint, setSavingMaint] = useState(false);
 
   const canAddNote = Boolean(permissions?.add_note);
@@ -148,13 +149,11 @@ export function DeviceDetailClient({
         maintenance_type: maintType,
         description: maintDescription,
         performed_at: new Date(maintPerformedAt).toISOString(),
-        technician: maintTech || undefined,
         next_due_days: maintType === "Preventiva" ? maintNextDays : null
       });
       setMaintOpen(false);
       setMaintDescription("");
       setMaintPerformedAt("");
-      setMaintTech("");
       await refreshAll();
     } catch (e: any) {
       setError(e?.message ?? "Falha ao criar manutenção");
@@ -162,6 +161,8 @@ export function DeviceDetailClient({
       setSavingMaint(false);
     }
   }
+
+  const canSaveMaintenance = Boolean(maintPerformedAt && maintDescription.trim());
 
   async function onDeleteMaintenance(id: number) {
     if (!confirm("Remover este registro de manutenção?")) return;
@@ -421,9 +422,9 @@ export function DeviceDetailClient({
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
-                        <label className="text-sm font-semibold">Técnico (opcional)</label>
+                        <label className="text-sm font-semibold">Técnico</label>
                         <div className="mt-2">
-                          <Input value={maintTech} onChange={(e) => setMaintTech(e.target.value)} />
+                          <Input value={technicianName || ""} disabled readOnly />
                         </div>
                       </div>
                       <div>
@@ -441,9 +442,14 @@ export function DeviceDetailClient({
                     </div>
 
                     <div>
-                      <label className="text-sm font-semibold">Descrição</label>
+                      <label className="text-sm font-semibold">Descrição *</label>
                       <div className="mt-2">
-                        <Textarea value={maintDescription} onChange={(e) => setMaintDescription(e.target.value)} className="min-h-[120px]" />
+                        <Textarea
+                          value={maintDescription}
+                          onChange={(e) => setMaintDescription(e.target.value)}
+                          className="min-h-[120px]"
+                          required
+                        />
                       </div>
                     </div>
                   </div>
@@ -451,7 +457,7 @@ export function DeviceDetailClient({
                     <Button variant="ghost" type="button" onClick={() => setMaintOpen(false)} disabled={savingMaint}>
                       Cancelar
                     </Button>
-                    <Button variant="primary" type="button" onClick={onCreateMaintenance} disabled={savingMaint}>
+                    <Button variant="primary" type="button" onClick={onCreateMaintenance} disabled={savingMaint || !canSaveMaintenance}>
                       {savingMaint ? "Salvando..." : "Salvar"}
                     </Button>
                   </DialogFooter>
