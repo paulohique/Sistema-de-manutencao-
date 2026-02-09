@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Select,
@@ -27,6 +28,24 @@ export function AdminPermissionsClient() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState<UserAdminRow[]>([]);
   const [savingUser, setSavingUser] = useState<string | null>(null);
+
+  const [changeOpen, setChangeOpen] = useState(false);
+  const [changeTitle, setChangeTitle] = useState<string>("");
+  const [changeLines, setChangeLines] = useState<string[]>([]);
+
+  function permLabel(key: string) {
+    if (key === "add_note") return "Adicionar nota";
+    if (key === "add_maintenance") return "Adicionar manutenção";
+    if (key === "generate_report") return "Gerar relatório";
+    if (key === "manage_permissions") return "Gerenciar permissões";
+    return key;
+  }
+
+  function roleLabel(role: UserRole) {
+    if (role === "admin") return "Administrador";
+    if (role === "auditor") return "Auditor";
+    return "Usuário";
+  }
 
   async function refresh() {
     setLoading(true);
@@ -63,8 +82,32 @@ export function AdminPermissionsClient() {
     setSavingUser(u.username);
     setError(null);
     try {
+      const prevPerms = u.permissions || {};
+      const changes: string[] = [];
+
+      if (u.role !== next.role) {
+        changes.push(`Papel: ${roleLabel(u.role)} → ${roleLabel(next.role)}`);
+      }
+
+      ([
+        "add_note",
+        "add_maintenance",
+        "generate_report",
+        "manage_permissions",
+      ] as const).forEach((k) => {
+        const before = toBool((prevPerms as any)[k]);
+        const after = Boolean((next as any)[k]);
+        if (before !== after) {
+          changes.push(`${permLabel(k)}: ${before ? "Sim" : "Não"} → ${after ? "Sim" : "Não"}`);
+        }
+      });
+
       const updated = await updateUserAccess(u.username, next);
       setUsers((prev) => prev.map((x) => (x.username === updated.username ? updated : x)));
+
+      setChangeTitle(`Alterações salvas para ${updated.username}`);
+      setChangeLines(changes.length ? changes : ["Nenhuma alteração detectada."]);
+      setChangeOpen(true);
     } catch (e: any) {
       setError(e?.message ?? "Falha ao salvar");
     } finally {
@@ -92,6 +135,26 @@ export function AdminPermissionsClient() {
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-lg">
+      <Dialog open={changeOpen} onOpenChange={setChangeOpen}>
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>{changeTitle || "Permissões atualizadas"}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2 text-sm text-gray-700">
+            {changeLines.map((line, idx) => (
+              <div key={idx}>{line}</div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button variant="primary" type="button" onClick={() => setChangeOpen(false)}>
+              Ok
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white p-6">
         <h2 className="text-xl font-bold text-gray-900">Permissões de Usuários</h2>
         <p className="mt-1 text-sm text-gray-600">

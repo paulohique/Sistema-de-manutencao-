@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -20,9 +21,11 @@ export function UserNav() {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [open, setOpen] = useState(false);
 
+  const pathname = usePathname();
+
   useEffect(() => {
     getMe().then(setMe).catch(() => setMe(null));
-  }, []);
+  }, [pathname]);
 
   const canManage = Boolean(me?.permissions?.manage_permissions);
   const showAdmin = me?.role === "admin" || canManage;
