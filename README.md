@@ -1,53 +1,135 @@
 ﻿# GLPI Manutenções
 
-Sistema de manutenções com **espelho local** do GLPI:
+Projeto full-stack criado para apoiar a empresa onde atuo: identifiquei uma necessidade real de **organizar o controle de manutenção de computadores** (preventiva/corretiva) e **gerar relatórios** de forma prática, usando o GLPI como fonte de verdade dos ativos.
 
-- Integração com GLPI é **somente leitura (GET)**.
-- Dados do GLPI são sincronizados e persistidos no MySQL local.
-- CRUD (notas/manutenções) acontece **apenas** no banco local, sem alterar o GLPI.
+O objetivo é reduzir retrabalho e dar visibilidade: o GLPI continua sendo o inventário, e este sistema cuida do **processo de manutenção**, histórico e relatórios.
 
-## Rodar (Windows)
+## ✨ O que este projeto resolve
 
-## Login (LDAP/AD)
+- Mantém um **espelho local (MySQL)** dos computadores do GLPI via sincronização.
+- Integração com o GLPI é **somente leitura (GET)**: nada é alterado no GLPI.
+- Permite registrar **manutenções**, adicionar **notas** e consultar histórico por dispositivo.
+- Traz **dashboard/indicadores** e **relatórios** para apoiar a gestão.
+- Possui **login com JWT** e **permissões** por usuário (RBAC + granular).
 
-O projeto tem uma tela de login em `/login` que autentica no **Active Directory via LDAP** e recebe um JWT.
+## 🧱 Arquitetura (visão rápida)
 
-- Backend: `POST /api/auth/login` (bind LDAP + emite JWT)
-- Frontend: salva o token no `localStorage` e envia `Authorization: Bearer <token>` nos endpoints de escrita.
+- **Frontend**: Next.js (App Router) + TypeScript + Tailwind.
+- **Backend**: FastAPI + SQLAlchemy.
+- **Banco**: MySQL.
+- **Integração GLPI**: API REST do GLPI (somente leitura), sincronizada para tabelas locais.
 
-Configuração necessária no `python-api/.env` (baseado em [python-api/.env.example](python-api/.env.example)):
+Fluxo de dados:
 
-- `JWT_SECRET` (obrigatório)
-- `LDAP_SERVER` (obrigatório)
-- `LDAP_BASE_DN` (recomendado)
-- `LDAP_DOMAIN` (opcional)
+1) Sync lê dados do GLPI → 2) persiste em MySQL → 3) app consulta o espelho local → 4) notas/manutenções são gravadas **somente no MySQL**.
 
-### 1) Popular o MySQL com dados do GLPI
+## 📸 Screenshots
 
-Dentro de `python-api/`:
+![Tela principal](docs/screenshots/principal.png)
 
-`python tools\run_sync.py`
+![Dispositivo](docs/screenshots/dispositivo.png)
 
-Para validar quantidades no banco:
+![Administração](docs/screenshots/admin.png)
 
-`python tools\db_counts.py`
+![Login](docs/screenshots/login.png)
 
-### 2) Subir a API (FastAPI)
+## 🔐 Autenticação
 
-`python -m uvicorn --app-dir python-api main:app --host 127.0.0.1 --port 8002`
+- Login padrão é **local** (tabela de usuários no banco) e emite JWT.
+- Existe suporte opcional para LDAP/AD (controlado por variável de ambiente), mas o login local continua disponível.
+
+Usuário inicial (seed): **admin/admin**.
+
+## 🗄️ Modelagem e “anti-duplicação” do sync
+
+- A chave estável do dispositivo é o `glpi_id`.
+- O banco tem `glpi_id` como **UNIQUE** para impedir duplicidade.
+- O sync é idempotente: se o nome do PC mudar no GLPI, o registro é **atualizado**, não duplicado.
+
+## 🚀 Como rodar (Windows)
+
+### Pré-requisitos
+
+- Node.js (LTS)
+- Python 3.11+ (ou compatível com as dependências)
+- MySQL (XAMPP ou MySQL Server)
+
+### 1) Banco de dados
+
+Crie o banco e usuário local (exemplo):
+
+- Script: [python-api/init_local_mysql.sql](python-api/init_local_mysql.sql)
+
+> As tabelas são criadas automaticamente pelo SQLAlchemy ao iniciar a API.
+
+### 2) Backend (FastAPI)
+
+1) Configure variáveis de ambiente:
+
+- Copie [python-api/.env.example](python-api/.env.example) para `python-api/.env`
+- Preencha `DB_*`, `GLPI_APP_TOKEN`, `GLPI_USER_TOKEN` e troque `JWT_SECRET`
+
+2) Instale dependências:
+
+```bash
+cd python-api
+pip install -r requirements.txt
+```
+
+3) (Opcional) Rode o sync manual 1x:
+
+```bash
+python tools\run_sync.py
+```
+
+4) Suba a API:
+
+```bash
+python -m uvicorn --app-dir . main:app --host 127.0.0.1 --port 8002 --reload
+```
 
 Health check:
 
-`http://127.0.0.1:8002/api/health`
+- `http://127.0.0.1:8002/api/health`
 
-### 3) Subir o Frontend (Next.js)
+Mais detalhes: [python-api/README.md](python-api/README.md)
 
-Dentro de `Frontend/` (ou usando prefix):
+### 3) Frontend (Next.js)
 
-`npm install`
+1) Configure o endpoint do backend:
 
-`npm run dev`
+- Ajuste [Frontend/.env.local](Frontend/.env.local)
 
-Garanta que [Frontend/.env.local](Frontend/.env.local) aponte para a API:
+Exemplo:
 
-`NEXT_PUBLIC_PY_API_URL=http://127.0.0.1:8002`
+```env
+NEXT_PUBLIC_PY_API_URL=http://127.0.0.1:8002
+```
+
+2) Instale e rode:
+
+```bash
+cd Frontend
+npm install
+npm run dev
+```
+
+Mais detalhes: [Frontend/README.md](Frontend/README.md)
+
+## 🧪 Dicas de operação
+
+- Se a API do GLPI bloquear seu IP (`ERROR_NOT_ALLOWED_IP`), você precisa liberar o IP do servidor que roda o backend no cliente da API do GLPI.
+- Para rodar sync automático 1x por dia, existe um script em [python-api/tools/daily_sync.sh](python-api/tools/daily_sync.sh).
+
+## 📌 Para recrutadores
+
+Este repositório demonstra:
+
+- Integração com sistema legado (GLPI) de forma segura (read-only + espelho local)
+- Backend com FastAPI + SQLAlchemy, endpoints e validações
+- Frontend moderno com Next.js, rotas protegidas e UX orientada a permissões
+- Preocupação com confiabilidade (sync idempotente + constraints no banco)
+
+## 📄 Licença
+
+Defina a licença conforme sua necessidade (ex.: MIT) antes de publicar externamente.
