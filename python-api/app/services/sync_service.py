@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
@@ -100,11 +101,16 @@ async def sync_glpi_computers_impl(db: Session) -> SyncResult:
                 break
 
             for comp_data in computers_data:
-                glpi_id = comp_data.get("id")
-                if not glpi_id:
+                glpi_id_raw = comp_data.get("id")
+                if glpi_id_raw is None:
                     continue
 
-                _set_sync_state(current_glpi_id=int(glpi_id))
+                try:
+                    glpi_id = int(glpi_id_raw)
+                except (TypeError, ValueError):
+                    continue
+
+                _set_sync_state(current_glpi_id=glpi_id)
 
                 computer = db.query(Computer).filter(Computer.glpi_id == glpi_id).first()
                 if not computer:
@@ -121,7 +127,18 @@ async def sync_glpi_computers_impl(db: Session) -> SyncResult:
                 computer.updated_at = datetime.utcnow()
 
                 if computer.id is None:
-                    db.flush()
+                    try:
+                        db.flush()
+                    except IntegrityError:
+                        # Another process/thread may have inserted the same glpi_id concurrently.
+                        db.rollback()
+                        computer = (
+                            db.query(Computer)
+                            .filter(Computer.glpi_id == glpi_id)
+                            .first()
+                        )
+                        if not computer:
+                            raise
 
                 computers_synced += 1
                 _set_sync_state(computers_synced=computers_synced)

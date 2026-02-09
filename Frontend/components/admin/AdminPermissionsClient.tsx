@@ -237,6 +237,28 @@ function EditableRow({
   const [genReport, setGenReport] = useState(initial.generate_report);
   const [managePerms, setManagePerms] = useState(initial.manage_permissions);
 
+  function applyRoleDefaults(nextRole: UserRole) {
+    if (nextRole === "admin") {
+      setAddNote(true);
+      setAddMaint(true);
+      setGenReport(true);
+      setManagePerms(true);
+      return;
+    }
+    if (nextRole === "auditor") {
+      setAddNote(false);
+      setAddMaint(false);
+      setGenReport(true);
+      setManagePerms(false);
+      return;
+    }
+    // user
+    setAddNote(false);
+    setAddMaint(false);
+    setGenReport(false);
+    setManagePerms(false);
+  }
+
   const dirty =
     role !== initial.role ||
     addNote !== initial.add_note ||
@@ -248,7 +270,14 @@ function EditableRow({
     <TableRow>
       <TableCell className="font-semibold">{user.username}</TableCell>
       <TableCell>
-        <Select value={role} onValueChange={(v) => setRole(v as any)}>
+        <Select
+          value={role}
+          onValueChange={(v) => {
+            const nextRole = v as UserRole;
+            setRole(nextRole);
+            applyRoleDefaults(nextRole);
+          }}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Papel" />
           </SelectTrigger>
