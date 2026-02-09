@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, JSON, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -106,3 +106,31 @@ class ComputerNote(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     computer = relationship("Computer", back_populates="notes")
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(Text, nullable=True)
+
+    display_name = Column(String(255), nullable=True)
+    email = Column(String(255), nullable=True)
+    groups = Column(JSON, nullable=True)
+
+    # Roles: admin | auditor | user
+    role = Column(String(32), nullable=False, default="user", index=True)
+
+    # Permission flags (admin pode tudo; os demais começam false)
+    can_add_note = Column(Boolean, nullable=False, default=False)
+    can_add_maintenance = Column(Boolean, nullable=False, default=False)
+    can_generate_report = Column(Boolean, nullable=False, default=False)
+    can_manage_permissions = Column(Boolean, nullable=False, default=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_users_role", "role"),
+    )

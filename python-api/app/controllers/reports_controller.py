@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_permission
 from app.core.database import get_db
 from app.schemas.report_schemas import MaintenanceReportResponse
 from app.services.report_service import get_maintenance_report
@@ -20,6 +21,7 @@ async def maintenance_report(
     to_date: Optional[date] = Query(None, alias="to"),
     maintenance_type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
+    _user=Depends(require_permission("generate_report")),
 ):
     # maintenance_type: Preventiva | Corretiva | (vazio/qualquer outro => ambas)
     return get_maintenance_report(

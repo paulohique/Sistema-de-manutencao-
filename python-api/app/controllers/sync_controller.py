@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, require_admin
 from app.core.database import get_db
 from app.schemas.schemas import SyncResult, SyncStatus
 from app.services.sync_service import (
@@ -21,7 +21,7 @@ router = APIRouter(tags=["sync"])
 async def sync_glpi_computers(
     async_run: bool = Query(False, alias="async"),
     db: Session = Depends(get_db),
-    _user=Depends(get_current_user),
+    _admin=Depends(require_admin),
 ):
     if async_run:
         if is_sync_running():
@@ -44,12 +44,12 @@ async def sync_glpi_computers(
 
 
 @router.get("/api/sync/status", response_model=SyncStatus)
-async def get_status():
+async def get_status(_user=Depends(get_current_user)):
     return get_sync_status()
 
 
 @router.post("/api/webhook/glpi")
-async def glpi_webhook(db: Session = Depends(get_db), _user=Depends(get_current_user)):
+async def glpi_webhook(db: Session = Depends(get_db), _admin=Depends(require_admin)):
     try:
         result = await sync_glpi_computers_impl(db)
         return {"status": "success", "result": result}

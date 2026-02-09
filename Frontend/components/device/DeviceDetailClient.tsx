@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { DeviceComponent, DeviceDetail, DeviceMaintenance, DeviceNote } from "@/models/device";
+import type { Permissions } from "@/models/auth";
 import {
   createDeviceNote,
   createMaintenance,
@@ -36,7 +37,13 @@ function statusVariant(status?: string | null) {
   return "neutral";
 }
 
-export function DeviceDetailClient({ deviceId }: { deviceId: string }) {
+export function DeviceDetailClient({
+  deviceId,
+  permissions,
+}: {
+  deviceId: string;
+  permissions?: Partial<Permissions>;
+}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +53,6 @@ export function DeviceDetailClient({ deviceId }: { deviceId: string }) {
   const [maintenance, setMaintenance] = useState<DeviceMaintenance[]>([]);
 
   const [noteOpen, setNoteOpen] = useState(false);
-  const [noteAuthor, setNoteAuthor] = useState("Sistema");
   const [noteContent, setNoteContent] = useState("");
   const [savingNote, setSavingNote] = useState(false);
 
@@ -57,6 +63,9 @@ export function DeviceDetailClient({ deviceId }: { deviceId: string }) {
   const [maintNextDays, setMaintNextDays] = useState(365);
   const [maintTech, setMaintTech] = useState("");
   const [savingMaint, setSavingMaint] = useState(false);
+
+  const canAddNote = Boolean(permissions?.add_note);
+  const canAddMaintenance = Boolean(permissions?.add_maintenance);
 
   const maintenanceStatus = useMemo(() => {
     if (!device) return "Pendente";
@@ -95,7 +104,7 @@ export function DeviceDetailClient({ deviceId }: { deviceId: string }) {
     if (!noteContent.trim()) return;
     setSavingNote(true);
     try {
-      await createDeviceNote(deviceId, { author: noteAuthor || "Sistema", content: noteContent });
+      await createDeviceNote(deviceId, { content: noteContent });
       setNoteOpen(false);
       setNoteContent("");
       await refreshAll();
@@ -255,9 +264,13 @@ export function DeviceDetailClient({ deviceId }: { deviceId: string }) {
 
             <TabsContent value="notes" className="space-y-4">
               <div className="flex justify-end">
-                <Button variant="primary" type="button" onClick={() => setNoteOpen(true)}>
-                  Adicionar Nota
-                </Button>
+                {canAddNote ? (
+                  <Button variant="primary" type="button" onClick={() => setNoteOpen(true)}>
+                    Adicionar Nota
+                  </Button>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Sem permissão para adicionar notas.</p>
+                )}
               </div>
 
               <Table>
@@ -276,14 +289,18 @@ export function DeviceDetailClient({ deviceId }: { deviceId: string }) {
                       <TableCell>{fmtDate(n.created_at)}</TableCell>
                       <TableCell className="whitespace-pre-wrap">{n.content}</TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" type="button" onClick={() => onEditNote(n)}>
-                            Editar
-                          </Button>
-                          <Button variant="destructive" type="button" onClick={() => onDeleteNote(n.id)}>
-                            Remover
-                          </Button>
-                        </div>
+                        {canAddNote ? (
+                          <div className="flex gap-2">
+                            <Button variant="outline" type="button" onClick={() => onEditNote(n)}>
+                              Editar
+                            </Button>
+                            <Button variant="destructive" type="button" onClick={() => onDeleteNote(n.id)}>
+                              Remover
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -297,18 +314,13 @@ export function DeviceDetailClient({ deviceId }: { deviceId: string }) {
                 </TableBody>
               </Table>
 
+              {canAddNote ? (
               <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
                 <DialogContent className="sm:max-w-[600px]">
                   <DialogHeader>
                     <DialogTitle>Adicionar Nota</DialogTitle>
                   </DialogHeader>
                   <div className="grid gap-4 py-2">
-                    <div>
-                      <label className="text-sm font-semibold">Autor</label>
-                      <div className="mt-2">
-                        <Input value={noteAuthor} onChange={(e) => setNoteAuthor(e.target.value)} />
-                      </div>
-                    </div>
                     <div>
                       <label className="text-sm font-semibold">Conteúdo</label>
                       <div className="mt-2">
@@ -326,13 +338,18 @@ export function DeviceDetailClient({ deviceId }: { deviceId: string }) {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              ) : null}
             </TabsContent>
 
             <TabsContent value="maintenance" className="space-y-4">
               <div className="flex justify-end">
-                <Button variant="primary" type="button" onClick={() => setMaintOpen(true)}>
-                  Adicionar Manutenção
-                </Button>
+                {canAddMaintenance ? (
+                  <Button variant="primary" type="button" onClick={() => setMaintOpen(true)}>
+                    Adicionar Manutenção
+                  </Button>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Sem permissão para registrar manutenção.</p>
+                )}
               </div>
 
               <Table>
@@ -355,9 +372,13 @@ export function DeviceDetailClient({ deviceId }: { deviceId: string }) {
                       <TableCell className="whitespace-pre-wrap">{m.description}</TableCell>
                       <TableCell>{fmtDate(m.next_due)}</TableCell>
                       <TableCell>
-                        <Button variant="destructive" type="button" onClick={() => onDeleteMaintenance(m.id)}>
-                          Remover
-                        </Button>
+                        {canAddMaintenance ? (
+                          <Button variant="destructive" type="button" onClick={() => onDeleteMaintenance(m.id)}>
+                            Remover
+                          </Button>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -371,6 +392,7 @@ export function DeviceDetailClient({ deviceId }: { deviceId: string }) {
                 </TableBody>
               </Table>
 
+              {canAddMaintenance ? (
               <Dialog open={maintOpen} onOpenChange={setMaintOpen}>
                 <DialogContent className="sm:max-w-[640px]">
                   <DialogHeader>
@@ -435,6 +457,7 @@ export function DeviceDetailClient({ deviceId }: { deviceId: string }) {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              ) : null}
             </TabsContent>
           </Tabs>
         </div>

@@ -43,7 +43,8 @@ export default function LoginPage() {
       if (!token) throw new Error("Resposta inválida do servidor");
 
       setToken(token);
-      router.push("/");
+      const next = new URLSearchParams(window.location.search).get("next") || "/";
+      router.push(next);
       router.refresh();
     } catch (err: any) {
       setError(err?.message ?? "Falha no login");
@@ -57,7 +58,10 @@ export default function LoginPage() {
     <div className="mx-auto max-w-md space-y-6">
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-lg">
         <h1 className="text-2xl font-bold text-gray-900">Entrar</h1>
-        <p className="mt-2 text-sm text-gray-600">Use seu usuário do Active Directory (LDAP).</p>
+        <p className="mt-2 text-sm text-gray-600">
+          Login local ativo. Padrão: <span className="font-mono">admin</span> / <span className="font-mono">admin</span>.
+          {" "}Se no futuro habilitar LDAP no backend, o mesmo endpoint continuará funcionando.
+        </p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div>

@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
-
-
-def _require_auth_enabled() -> None:
-    if not settings.AUTH_ENABLED:
-        raise HTTPException(status_code=503, detail="Auth desabilitada no servidor")
+from app.core.database import get_db
+from app.models import User
 
 
 def _jwt_now() -> datetime:
@@ -20,8 +18,6 @@ def _jwt_now() -> datetime:
 
 
 def create_access_token(payload: Dict[str, Any]) -> str:
-    _require_auth_enabled()
-
     now = _jwt_now()
     exp = now + timedelta(minutes=int(settings.JWT_EXPIRES_MINUTES))
 
@@ -39,7 +35,6 @@ def create_access_token(payload: Dict[str, Any]) -> str:
 
 
 def decode_access_token(token: str) -> Dict[str, Any]:
-    _require_auth_enabled()
     try:
         return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
     except jwt.ExpiredSignatureError:
@@ -53,14 +48,12 @@ security = HTTPBearer(auto_error=False)
 
 def get_current_user(
     creds: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     # Modo temporário: permite desativar a exigência de autenticação via env.
     # Mantém o resto do código/rotas intacto e facilita reativar no futuro.
     if not settings.AUTH_ENABLED:
-        return {
-            "sub": "anonymous",
-            "auth_disabled": True,
-        }
+        return {"sub": "anonymous", "auth_disabled": True, "role": "anonymous", "permissions": {}}
 
     if not creds or not creds.credentials:
         raise HTTPException(status_code=401, detail="Não autenticado")
@@ -70,7 +63,23 @@ def get_current_user(
     if not username:
         raise HTTPException(status_code=401, detail="Token inválido")
 
-    return payload
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Usuário não encontrado")
+
+    return {
+        "sub": user.username,
+        "display_name": user.display_name,
+        "email": user.email,
+        "groups": list(user.groups or []),
+        "role": user.role,
+        "permissions": {
+            "add_note": bool(user.can_add_note),
+            "add_maintenance": bool(user.can_add_maintenance),
+            "generate_report": bool(user.can_generate_report),
+            "manage_permissions": bool(user.can_manage_permissions),
+        },
+    }
 
 
 def _normalize_group_dns(member_of: Any) -> List[str]:
@@ -89,9 +98,6 @@ def ldap_authenticate(username: str, password: str) -> Dict[str, Any]:
     - NÃO grava nada no LDAP/AD.
     - Retorna dados básicos do usuário e grupos (DNs) se base_dn estiver configurado.
     """
-
-    _require_auth_enabled()
-
     if not settings.LDAP_SERVER:
         raise HTTPException(status_code=503, detail="LDAP_SERVER não configurado")
 
@@ -143,3 +149,25 @@ def ldap_authenticate(username: str, password: str) -> Dict[str, Any]:
         pass
 
     return user_info
+
+
+def require_permission(permission: str) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
+    def _dep(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+        if not settings.AUTH_ENABLED:
+            return user
+        if user.get("role") == "admin":
+            return user
+        perms = user.get("permissions") or {}
+        if not bool(perms.get(permission)):
+            raise HTTPException(status_code=403, detail="Sem permissão")
+        return user
+
+    return _dep
+
+
+def require_admin(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+    if not settings.AUTH_ENABLED:
+        return user
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores")
+    return user

@@ -1,5 +1,7 @@
 import { type DevicesPage, type DevicesQuery, type DeviceRow } from "@/models/device";
 
+import { serverAuthHeaders } from "@/lib/auth-server";
+
 function includesCI(haystack: string, needle: string) {
   return haystack.toLowerCase().includes(needle.toLowerCase());
 }
@@ -35,7 +37,7 @@ export async function getDevices(query: DevicesQuery): Promise<DevicesPage> {
     url.searchParams.set("page_size", String(query.pageSize));
     if (query.q) url.searchParams.set("q", query.q);
 
-    const res = await fetch(url.toString(), { cache: "no-store" });
+    const res = await fetch(url.toString(), { cache: "no-store", headers: serverAuthHeaders() });
     
     if (!res.ok) {
       console.error(`Erro ao buscar dispositivos: ${res.status} ${res.statusText}`);

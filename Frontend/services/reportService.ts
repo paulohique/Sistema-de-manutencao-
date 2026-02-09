@@ -1,5 +1,7 @@
 import { type MaintenanceReportQuery, type MaintenanceReportResponse } from "@/models/report";
 
+import { serverAuthHeaders } from "@/lib/auth-server";
+
 export async function getMaintenanceReport(
   query: MaintenanceReportQuery
 ): Promise<MaintenanceReportResponse | null> {
@@ -14,7 +16,7 @@ export async function getMaintenanceReport(
       url.searchParams.set("maintenance_type", query.maintenance_type);
     }
 
-    const res = await fetch(url.toString(), { cache: "no-store" });
+    const res = await fetch(url.toString(), { cache: "no-store", headers: serverAuthHeaders() });
     if (!res.ok) return null;
     const data = await res.json();
     return {

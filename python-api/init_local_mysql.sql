@@ -14,3 +14,6 @@ ALTER USER 'glpi_user'@'localhost' IDENTIFIED BY '0000';
 GRANT ALL PRIVILEGES ON glpi_manutencao.* TO 'glpi_user'@'localhost';
 
 FLUSH PRIVILEGES;
+
+-- Migrações (quando atualizar versão do código):
+-- Rode os scripts em python-api/migrations/ no banco glpi_manutencao.

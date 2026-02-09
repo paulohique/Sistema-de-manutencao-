@@ -20,12 +20,18 @@ def get_device_notes(db: Session, device_id: int):
     )
 
 
-def create_device_note(db: Session, device_id: int, note: NoteCreate) -> Optional[ComputerNote]:
+def create_device_note(
+    db: Session,
+    device_id: int,
+    note: NoteCreate,
+    *,
+    author: str,
+) -> Optional[ComputerNote]:
     computer = db.query(Computer).filter(Computer.id == device_id).first()
     if not computer:
         return None
 
-    note_record = ComputerNote(computer_id=device_id, author=note.author, content=note.content)
+    note_record = ComputerNote(computer_id=device_id, author=author or "Sistema", content=note.content)
     db.add(note_record)
     db.commit()
     db.refresh(note_record)
@@ -46,8 +52,6 @@ def update_device_note(
     if not note:
         return None
 
-    if payload.author is not None:
-        note.author = payload.author
     if payload.content is not None:
         note.content = payload.content
     note.updated_at = datetime.utcnow()

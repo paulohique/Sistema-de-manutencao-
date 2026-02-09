@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getMeServer } from "@/services/meServerService";
 
 type Tab = "dispositivos" | "preventiva" | "corretiva" | "relatorio";
 
@@ -33,6 +34,10 @@ export default async function Page({
 }) {
   const hasBackend = Boolean(process.env.NEXT_PUBLIC_PY_API_URL);
 
+  const me = await getMeServer();
+  const canGenerateReport = Boolean(me?.permissions?.generate_report);
+  const isAdmin = me?.role === "admin";
+
   const metrics = await loadDashboardMetrics();
   const totalComputers = metrics?.total_computers ?? 0;
   const preventiveDone = metrics?.preventive_done_computers ?? 0;
@@ -46,6 +51,8 @@ export default async function Page({
   const tab = normalizeTab(
     typeof searchParams?.tab === "string" ? searchParams?.tab : undefined
   );
+
+  const effectiveTab = tab === "relatorio" && !canGenerateReport ? "dispositivos" : tab;
   const q = typeof searchParams?.q === "string" ? searchParams.q : "";
   const page = Math.max(
     1,
@@ -53,9 +60,9 @@ export default async function Page({
   );
   const pageSize = 10;
 
-  const data = tab === "relatorio"
+  const data = effectiveTab === "relatorio"
     ? undefined
-    : await loadDevices({ tab: tab as DevicesQuery["tab"], q, page, pageSize });
+    : await loadDevices({ tab: effectiveTab as DevicesQuery["tab"], q, page, pageSize });
 
   const from = data ? (data.total === 0 ? 0 : (data.page - 1) * data.pageSize + 1) : 0;
   const to = data ? Math.min(data.total, data.page * data.pageSize) : 0;
@@ -77,7 +84,7 @@ export default async function Page({
     ? reportTypeRaw
     : "Ambas";
 
-  const report = tab === "relatorio"
+  const report = effectiveTab === "relatorio"
     ? await loadMaintenanceReport({ from: reportFrom, to: reportTo, maintenance_type: reportType })
     : null;
 
@@ -91,6 +98,25 @@ export default async function Page({
           </p>
         </div>
       </div>
+
+      {isAdmin ? (
+        <div className="rounded-xl border border-gray-200 bg-white shadow-lg">
+          <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white p-6">
+            <h3 className="text-lg font-bold text-gray-900">Administração</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Modifique permissões e papéis (Usuário/Auditor/Administrador).
+            </p>
+          </div>
+          <div className="p-6 flex items-center justify-between gap-4">
+            <div className="text-sm text-muted-foreground">
+              Acesso exclusivo para administradores.
+            </div>
+            <Button asChild variant="primary">
+              <Link href="/admin">Abrir painel</Link>
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
@@ -113,7 +139,7 @@ export default async function Page({
       <DashboardPies metrics={metrics} />
 
       <div className="rounded-xl bg-white p-1.5 shadow-sm border border-gray-200">
-        <Tabs value={tab}>
+        <Tabs value={effectiveTab}>
           <TabsList className="bg-transparent gap-1">
             <TabsTrigger asChild value="dispositivos">
               <Link href={mkHref({ tab: "dispositivos", page: 1 })}>Dispositivos</Link>
@@ -128,14 +154,20 @@ export default async function Page({
                 Manutenção Corretiva
               </Link>
             </TabsTrigger>
-            <TabsTrigger asChild value="relatorio">
-              <Link href="/?tab=relatorio">Relatório</Link>
-            </TabsTrigger>
+            {canGenerateReport ? (
+              <TabsTrigger asChild value="relatorio">
+                <Link href="/?tab=relatorio">Relatório</Link>
+              </TabsTrigger>
+            ) : null}
           </TabsList>
         </Tabs>
       </div>
 
-      {tab === "relatorio" ? (
+      {tab === "relatorio" && !canGenerateReport ? (
+        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-6 text-sm text-yellow-800">
+          Você não tem permissão para gerar relatórios.
+        </div>
+      ) : effectiveTab === "relatorio" ? (
         <ReportClient
           rows={report?.items ?? []}
           total={report?.total ?? 0}

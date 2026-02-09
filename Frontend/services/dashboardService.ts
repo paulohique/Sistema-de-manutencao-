@@ -1,12 +1,14 @@
 import { type DashboardMetrics } from "@/models/dashboard";
 
+import { serverAuthHeaders } from "@/lib/auth-server";
+
 export async function getDashboardMetrics(): Promise<DashboardMetrics | null> {
   const py = process.env.NEXT_PUBLIC_PY_API_URL;
   if (!py) return null;
 
   try {
     const url = new URL(`${py}/api/dashboard/metrics`);
-    const res = await fetch(url.toString(), { cache: "no-store" });
+    const res = await fetch(url.toString(), { cache: "no-store", headers: serverAuthHeaders() });
     if (!res.ok) return null;
     const data = await res.json();
     return {

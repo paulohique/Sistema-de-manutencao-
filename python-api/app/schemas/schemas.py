@@ -169,12 +169,30 @@ class UserOut(BaseModel):
     display_name: Optional[str] = None
     email: Optional[str] = None
     groups: List[str] = []
+    role: str = "user"
+    permissions: Dict[str, bool] = {}
 
 
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+
+
+class UserAdminRow(BaseModel):
+    username: str
+    display_name: Optional[str] = None
+    email: Optional[str] = None
+    role: str
+    permissions: Dict[str, bool]
+
+
+class UserAccessUpdate(BaseModel):
+    role: str = Field(..., pattern="^(admin|auditor|user)$")
+    add_note: bool = False
+    add_maintenance: bool = False
+    generate_report: bool = False
+    manage_permissions: bool = False
 
 
 # Dashboard

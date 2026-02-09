@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRES_MINUTES: int = 12 * 60
 
+    # Login
+    # Mantém login local sempre disponível.
+    # Se no futuro quiser permitir login via LDAP/AD, habilite esta flag e configure LDAP_*.
+    LOGIN_ALLOW_LDAP: bool = False
+
     # LDAP (Active Directory)
     LDAP_SERVER: str = ""  # ex: ldap://dc01.seudominio.local ou ldaps://dc01.seudominio.local
     LDAP_BASE_DN: str = ""  # ex: DC=seudominio,DC=local

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { DeviceDetailClient } from "@/components/device/DeviceDetailClient";
+import { getMeServer } from "@/services/meServerService";
 
 type Props = {
   params: { id: string };
@@ -8,6 +9,9 @@ type Props = {
 
 export default async function DeviceDetailPage({ params }: Props) {
   const { id } = params;
+
+  const me = await getMeServer();
+  const permissions = me?.permissions ?? {};
 
   return (
     <div className="space-y-6">
@@ -28,7 +32,7 @@ export default async function DeviceDetailPage({ params }: Props) {
         </div>
       </div>
 
-      <DeviceDetailClient deviceId={id} />
+      <DeviceDetailClient deviceId={id} permissions={permissions as any} />
     </div>
   );
 }

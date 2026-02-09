@@ -19,36 +19,64 @@ function authHeaders() {
   return { Authorization: `Bearer ${token}` } as HeadersInit;
 }
 
+async function readApiErrorDetail(res: Response): Promise<string> {
+  const contentType = res.headers.get("content-type") || "";
+  try {
+    if (contentType.includes("application/json")) {
+      const data: any = await res.json();
+      if (data && typeof data === "object") {
+        if (typeof data.detail === "string") return data.detail;
+        if (typeof data.message === "string") return data.message;
+        if (data.detail != null) return JSON.stringify(data.detail);
+      }
+      return JSON.stringify(data);
+    }
+
+    const text = (await res.text()).trim();
+    return text;
+  } catch {
+    return "";
+  }
+}
+
+async function throwIfNotOk(res: Response, action: string): Promise<void> {
+  if (res.ok) return;
+  const detail = await readApiErrorDetail(res);
+  const suffix = detail ? ` - ${detail}` : "";
+  throw new Error(`${action}: ${res.status}${suffix}`);
+}
+
 export async function getDeviceDetail(deviceId: string): Promise<DeviceDetail> {
   const url = `${getBaseUrl()}/api/devices/${encodeURIComponent(deviceId)}`;
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-store", headers: authHeaders() });
   if (!res.ok) throw new Error(`Falha ao carregar device: ${res.status}`);
   return res.json();
 }
 
 export async function getDeviceComponents(deviceId: string): Promise<DeviceComponent[]> {
   const url = `${getBaseUrl()}/api/devices/${encodeURIComponent(deviceId)}/components`;
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-store", headers: authHeaders() });
   if (!res.ok) throw new Error(`Falha ao carregar componentes: ${res.status}`);
   return res.json();
 }
 
 export async function getDeviceNotes(deviceId: string): Promise<DeviceNote[]> {
   const url = `${getBaseUrl()}/api/devices/${encodeURIComponent(deviceId)}/notes`;
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-store", headers: authHeaders() });
   if (!res.ok) throw new Error(`Falha ao carregar notas: ${res.status}`);
   return res.json();
 }
 
-export async function createDeviceNote(deviceId: string, payload: { author: string; content: string }) {
+export async function createDeviceNote(deviceId: string, payload: { content: string }) {
   const url = `${getBaseUrl()}/api/devices/${encodeURIComponent(deviceId)}/notes`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(authHeaders() as any) },
     body: JSON.stringify(payload)
   });
-  if (res.status === 401) throw new Error("Não autenticado. Faça login para criar notas.");
-  if (!res.ok) throw new Error(`Falha ao criar nota: ${res.status}`);
+  // Temporário: desabilitado o erro específico de "Não autenticado" no frontend.
+  // if (res.status === 401) throw new Error("Não autenticado. Faça login para criar notas.");
+  await throwIfNotOk(res, "Falha ao criar nota");
   return res.json() as Promise<DeviceNote>;
 }
 
@@ -63,21 +91,23 @@ export async function updateDeviceNote(
     headers: { "Content-Type": "application/json", ...(authHeaders() as any) },
     body: JSON.stringify(payload)
   });
-  if (res.status === 401) throw new Error("Não autenticado. Faça login para editar notas.");
-  if (!res.ok) throw new Error(`Falha ao atualizar nota: ${res.status}`);
+  // Temporário: desabilitado o erro específico de "Não autenticado" no frontend.
+  // if (res.status === 401) throw new Error("Não autenticado. Faça login para editar notas.");
+  await throwIfNotOk(res, "Falha ao atualizar nota");
   return res.json() as Promise<DeviceNote>;
 }
 
 export async function deleteDeviceNote(deviceId: string, noteId: number) {
   const url = `${getBaseUrl()}/api/devices/${encodeURIComponent(deviceId)}/notes/${noteId}`;
   const res = await fetch(url, { method: "DELETE", headers: authHeaders() });
-  if (res.status === 401) throw new Error("Não autenticado. Faça login para remover notas.");
-  if (!res.ok) throw new Error(`Falha ao deletar nota: ${res.status}`);
+  // Temporário: desabilitado o erro específico de "Não autenticado" no frontend.
+  // if (res.status === 401) throw new Error("Não autenticado. Faça login para remover notas.");
+  await throwIfNotOk(res, "Falha ao deletar nota");
 }
 
 export async function getDeviceMaintenance(deviceId: string): Promise<DeviceMaintenance[]> {
   const url = `${getBaseUrl()}/api/devices/${encodeURIComponent(deviceId)}/maintenance`;
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-store", headers: authHeaders() });
   if (!res.ok) throw new Error(`Falha ao carregar manutenções: ${res.status}`);
   return res.json();
 }
@@ -96,8 +126,9 @@ export async function createMaintenance(payload: {
     headers: { "Content-Type": "application/json", ...(authHeaders() as any) },
     body: JSON.stringify(payload)
   });
-  if (res.status === 401) throw new Error("Não autenticado. Faça login para criar manutenção.");
-  if (!res.ok) throw new Error(`Falha ao criar manutenção: ${res.status}`);
+  // Temporário: desabilitado o erro específico de "Não autenticado" no frontend.
+  // if (res.status === 401) throw new Error("Não autenticado. Faça login para criar manutenção.");
+  await throwIfNotOk(res, "Falha ao criar manutenção");
   return res.json() as Promise<DeviceMaintenance>;
 }
 
@@ -117,14 +148,16 @@ export async function updateMaintenance(
     headers: { "Content-Type": "application/json", ...(authHeaders() as any) },
     body: JSON.stringify(payload)
   });
-  if (res.status === 401) throw new Error("Não autenticado. Faça login para atualizar manutenção.");
-  if (!res.ok) throw new Error(`Falha ao atualizar manutenção: ${res.status}`);
+  // Temporário: desabilitado o erro específico de "Não autenticado" no frontend.
+  // if (res.status === 401) throw new Error("Não autenticado. Faça login para atualizar manutenção.");
+  await throwIfNotOk(res, "Falha ao atualizar manutenção");
   return res.json() as Promise<DeviceMaintenance>;
 }
 
 export async function deleteMaintenance(maintenanceId: number) {
   const url = `${getBaseUrl()}/api/maintenance/${maintenanceId}`;
   const res = await fetch(url, { method: "DELETE", headers: authHeaders() });
-  if (res.status === 401) throw new Error("Não autenticado. Faça login para deletar manutenção.");
-  if (!res.ok) throw new Error(`Falha ao deletar manutenção: ${res.status}`);
+  // Temporário: desabilitado o erro específico de "Não autenticado" no frontend.
+  // if (res.status === 401) throw new Error("Não autenticado. Faça login para deletar manutenção.");
+  await throwIfNotOk(res, "Falha ao deletar manutenção");
 }

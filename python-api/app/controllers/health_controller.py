@@ -4,6 +4,8 @@ from datetime import datetime
 
 from fastapi import APIRouter
 
+from app.core.config import settings
+
 
 router = APIRouter(tags=["health"])
 
@@ -13,5 +15,6 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "GLPI Manutenções API",
+        "auth_enabled": bool(settings.AUTH_ENABLED),
         "timestamp": datetime.utcnow().isoformat(),
     }
