@@ -473,7 +473,7 @@ export function DeviceDetailClient({
                             ) : null}
                             {tickets.map((t) => (
                               <SelectItem key={t.id} value={String(t.id)}>
-                                #{t.id}
+                                #{t.id}{t.title ? ` — ${t.title}` : ""}
                               </SelectItem>
                             ))}
                             {!ticketsLoading && tickets.length === 0 ? (

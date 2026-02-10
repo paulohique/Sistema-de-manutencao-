@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import re
 import unicodedata
+import html
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -101,6 +102,13 @@ async def list_open_tickets(
 
         title = t.get("name") or t.get("title") or t.get("subject") or ""
         title = str(title).strip()
+        if title:
+            title = html.unescape(title)
+            # Alguns títulos do GLPI vêm com separador hierárquico (ex.: "SSP > Defesa Civil").
+            # Padroniza removendo o caractere '>' para não aparecer como '&#62;' ou '>'.
+            title = title.replace(">", "-")
+            title = re.sub(r"\s*-\s*", " - ", title)
+            title = re.sub(r"\s+", " ", title).strip()
 
         items.append({"id": ticket_id_int, "title": title})
 
