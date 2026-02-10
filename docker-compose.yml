@@ -1,0 +1,63 @@
+services:
+  db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-glpi_manutencao}
+      MYSQL_USER: ${DB_USER:-glpi_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-0000}
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./python-api
+      dockerfile: Dockerfile
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-glpi_user}
+      DB_PASSWORD: ${DB_PASSWORD:-0000}
+      DB_NAME: ${DB_NAME:-glpi_manutencao}
+
+      GLPI_BASE_URL: ${GLPI_BASE_URL:-http://suporte.barbacena.mg.gov.br:8585/glpi/apirest.php}
+      GLPI_APP_TOKEN: ${GLPI_APP_TOKEN}
+      GLPI_USER_TOKEN: ${GLPI_USER_TOKEN}
+
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      AUTH_ENABLED: ${AUTH_ENABLED:-true}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+
+      GLPI_OUTBOX_WORKER_ENABLED: ${GLPI_OUTBOX_WORKER_ENABLED:-false}
+      GLPI_OUTBOX_PROCESS_INTERVAL_SECONDS: ${GLPI_OUTBOX_PROCESS_INTERVAL_SECONDS:-60}
+      GLPI_OUTBOX_PROCESS_BATCH_SIZE: ${GLPI_OUTBOX_PROCESS_BATCH_SIZE:-25}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    environment:
+      # URL para o browser (client-side)
+      NEXT_PUBLIC_PY_API_URL: ${NEXT_PUBLIC_PY_API_URL:-http://localhost:8000}
+      # URL para o Next.js server-side dentro da rede docker
+      PY_API_INTERNAL_URL: ${PY_API_INTERNAL_URL:-http://api:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  db_data:

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { setToken } from "@/lib/auth";
+import { getPyApiBaseUrl } from "@/lib/py-api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,8 +20,10 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const base = process.env.NEXT_PUBLIC_PY_API_URL;
-    if (!base) {
+    let base: string;
+    try {
+      base = getPyApiBaseUrl();
+    } catch {
       setError("NEXT_PUBLIC_PY_API_URL não configurada");
       setLoading(false);
       return;

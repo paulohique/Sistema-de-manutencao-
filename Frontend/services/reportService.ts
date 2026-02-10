@@ -1,12 +1,17 @@
 import { type MaintenanceReportQuery, type MaintenanceReportResponse } from "@/models/report";
 
 import { serverAuthHeaders } from "@/lib/auth-server";
+import { getPyApiBaseUrl } from "@/lib/py-api";
 
 export async function getMaintenanceReport(
   query: MaintenanceReportQuery
 ): Promise<MaintenanceReportResponse | null> {
-  const py = process.env.NEXT_PUBLIC_PY_API_URL;
-  if (!py) return null;
+  let py: string;
+  try {
+    py = getPyApiBaseUrl();
+  } catch {
+    return null;
+  }
 
   try {
     const url = new URL(`${py}/api/reports/maintenance`);

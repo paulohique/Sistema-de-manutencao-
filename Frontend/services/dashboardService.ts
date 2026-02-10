@@ -1,10 +1,15 @@
 import { type DashboardMetrics } from "@/models/dashboard";
 
 import { serverAuthHeaders } from "@/lib/auth-server";
+import { getPyApiBaseUrl } from "@/lib/py-api";
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics | null> {
-  const py = process.env.NEXT_PUBLIC_PY_API_URL;
-  if (!py) return null;
+  let py: string;
+  try {
+    py = getPyApiBaseUrl();
+  } catch {
+    return null;
+  }
 
   try {
     const url = new URL(`${py}/api/dashboard/metrics`);

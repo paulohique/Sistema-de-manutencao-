@@ -1,9 +1,14 @@
 import type { MeResponse } from "@/models/auth";
 import { serverAuthHeaders } from "@/lib/auth-server";
+import { getPyApiBaseUrl } from "@/lib/py-api";
 
 export async function getMeServer(): Promise<MeResponse | null> {
-  const py = process.env.NEXT_PUBLIC_PY_API_URL;
-  if (!py) return null;
+  let py: string;
+  try {
+    py = getPyApiBaseUrl();
+  } catch {
+    return null;
+  }
 
   try {
     const res = await fetch(`${py}/api/auth/me`, {

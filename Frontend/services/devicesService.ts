@@ -1,6 +1,7 @@
 import { type DevicesPage, type DevicesQuery, type DeviceRow } from "@/models/device";
 
 import { serverAuthHeaders } from "@/lib/auth-server";
+import { getPyApiBaseUrl } from "@/lib/py-api";
 
 function includesCI(haystack: string, needle: string) {
   return haystack.toLowerCase().includes(needle.toLowerCase());
@@ -17,9 +18,10 @@ function filterByTab(items: DeviceRow[], tab: DevicesQuery["tab"]) {
 }
 
 export async function getDevices(query: DevicesQuery): Promise<DevicesPage> {
-  const py = process.env.NEXT_PUBLIC_PY_API_URL;
-  
-  if (!py) {
+  let py: string;
+  try {
+    py = getPyApiBaseUrl();
+  } catch {
     console.warn("NEXT_PUBLIC_PY_API_URL não configurada. Configure a variável de ambiente para consumir dados do GLPI.");
     return {
       items: [],
@@ -28,7 +30,7 @@ export async function getDevices(query: DevicesQuery): Promise<DevicesPage> {
       total: 0
     };
   }
-
+  
   try {
     const tabParam = query.tab === "dispositivos" ? "all" : query.tab;
     const url = new URL(`${py}/api/devices`);

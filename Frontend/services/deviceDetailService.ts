@@ -8,11 +8,10 @@ import type {
 import type { GlpiOpenTicketsResponse } from "@/models/glpi";
 
 import { getToken } from "@/lib/auth";
+import { getPyApiBaseUrl } from "@/lib/py-api";
 
 function getBaseUrl() {
-  const py = process.env.NEXT_PUBLIC_PY_API_URL;
-  if (!py) throw new Error("NEXT_PUBLIC_PY_API_URL não configurada");
-  return py;
+  return getPyApiBaseUrl();
 }
 
 function authHeaders() {
