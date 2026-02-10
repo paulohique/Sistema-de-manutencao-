@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import html
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -15,6 +17,12 @@ from app.services.maintenance_service import create_maintenance, delete_maintena
 
 
 router = APIRouter(tags=["maintenance"])
+
+
+def _sanitize_followup_text(value: str) -> str:
+    cleaned = (value or "").replace("\x00", "").strip()
+    # Escape para evitar que o GLPI interprete HTML caso o campo seja renderizado.
+    return html.escape(cleaned, quote=False)
 
 
 @router.post("/api/maintenance", response_model=MaintenanceOut)
@@ -51,7 +59,7 @@ async def create_maintenance_endpoint(
         if msg_type == "corretiva":
             desc = (maintenance.description or "").strip()
             if desc:
-                extra = f"\n\nObservação registrada:\n{desc}"
+                extra = f"\n\nObservação registrada:\n{_sanitize_followup_text(desc)}"
 
         # Persistimos primeiro (outbox) para não perder a informação se o GLPI estiver fora.
         outbox = enqueue_followup(
