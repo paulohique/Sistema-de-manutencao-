@@ -7,8 +7,10 @@ O objetivo é reduzir retrabalho e dar visibilidade: o GLPI continua sendo o inv
 ## O que este projeto resolve
 
 - Mantém um **espelho local (MySQL)** dos computadores do GLPI via sincronização.
-- Integração com o GLPI é **somente leitura (GET)**: nada é alterado no GLPI.
+- Integração com o GLPI é **leitura para inventário** e **escrita pontual** apenas para adicionar comentário (follow-up) no chamado vinculado à manutenção.
 - Permite registrar **manutenções**, adicionar **notas** e consultar histórico por dispositivo.
+- Ao registrar uma manutenção, é **obrigatório vincular um chamado do GLPI** (categoria **Computador**) e o sistema registra esse vínculo no histórico.
+- Após salvar a manutenção, o sistema **envia uma mensagem no chamado do GLPI** informando que a manutenção foi realizada (best-effort).
 - Traz **dashboard/indicadores** e **relatórios** para apoiar a gestão.
 - Possui **login com JWT** e **permissões** por usuário (RBAC + granular).
 
@@ -17,11 +19,20 @@ O objetivo é reduzir retrabalho e dar visibilidade: o GLPI continua sendo o inv
 - **Frontend**: Next.js (App Router) + TypeScript + Tailwind.
 - **Backend**: FastAPI + SQLAlchemy.
 - **Banco**: MySQL.
-- **Integração GLPI**: API REST do GLPI (somente leitura), sincronizada para tabelas locais.
+- **Integração GLPI**: API REST do GLPI para leitura de inventário + comentários em chamados vinculados.
 
 Fluxo de dados:
 
-1) Sync lê dados do GLPI → 2) persiste em MySQL → 3) app consulta o espelho local → 4) notas/manutenções são gravadas **somente no MySQL**.
+1) Sync lê dados do GLPI → 2) persiste em MySQL → 3) app consulta o espelho local → 4) notas são gravadas no MySQL; manutenções são gravadas no MySQL e geram um **follow-up no ticket do GLPI** vinculado.
+
+## Vinculação obrigatória de chamado (GLPI)
+
+Quando você abre o modal de manutenção no dispositivo:
+
+1) O Frontend busca uma API do backend que consulta o GLPI e lista **somente chamados abertos** da categoria **Computador**.
+2) Você seleciona o **ID do chamado**.
+3) Ao salvar a manutenção, o sistema grava `glpi_ticket_id` no histórico.
+4) Em seguida, o backend envia uma mensagem no ticket do GLPI avisando que a manutenção foi realizada no computador (best-effort).
 
 ## Screenshots
 
@@ -31,7 +42,15 @@ Fluxo de dados:
 
 ![Dispositivo](docs/screenshots/dispositivo.png)
 
+![Manutenção (vincular chamado GLPI)](docs/screenshots/manutencao.png)
+
+![Componentes](docs/screenshots/componentes.png)
+
 ![Administração](docs/screenshots/admin.png)
+
+![Relatório](docs/screenshots/relatorio.png)
+
+![Sessão](docs/screenshots/sessao.png)
 
 ## Autenticação
 
