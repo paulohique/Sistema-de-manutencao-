@@ -43,7 +43,17 @@ async def create_maintenance_endpoint(
     try:
         glpi = GlpiClient()
         msg_type = "preditiva" if created.maintenance_type == "Preventiva" else "corretiva"
-        await glpi.add_ticket_followup(int(maintenance.glpi_ticket_id), f"Manutenção {msg_type} feita no devido computador")
+
+        base_msg = f"Manutenção {msg_type} feita no devido computador"
+
+        # Para manutenção corretiva, inclui também o texto digitado em Observação/Descrição.
+        extra = ""
+        if msg_type == "corretiva":
+            desc = (maintenance.description or "").strip()
+            if desc:
+                extra = f"\n\nObservação registrada:\n{desc}"
+
+        await glpi.add_ticket_followup(int(maintenance.glpi_ticket_id), base_msg + extra)
     except Exception:
         # Não falha o registro local caso o GLPI esteja indisponível.
         pass
