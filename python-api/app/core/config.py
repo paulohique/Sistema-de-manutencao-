@@ -18,6 +18,16 @@ class Settings(BaseSettings):
     GLPI_APP_TOKEN: str
     GLPI_USER_TOKEN: str
 
+    # GLPI - Tickets list cache (evita sobrecarregar o GLPI)
+    GLPI_TICKETS_CACHE_TTL_SECONDS: int = 30
+    # Se o GLPI estiver fora, permite servir último cache por um tempo (evita dropdown vazio)
+    GLPI_TICKETS_CACHE_STALE_MAX_SECONDS: int = 10 * 60
+
+    # GLPI - Outbox (evita perder follow-up quando GLPI estiver indisponível)
+    GLPI_OUTBOX_WORKER_ENABLED: bool = False
+    GLPI_OUTBOX_PROCESS_INTERVAL_SECONDS: int = 60
+    GLPI_OUTBOX_PROCESS_BATCH_SIZE: int = 25
+
     # App
     CORS_ORIGINS: str = "http://localhost:3000"
     MAINTENANCE_INTERVAL_DAYS: int = 365

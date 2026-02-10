@@ -10,6 +10,7 @@ from app.integrations.glpi_client import GlpiClient
 # Para reativar no futuro, reintroduza `Depends(get_current_user)` nas rotas POST/PUT/DELETE.
 from app.core.database import get_db
 from app.schemas.schemas import MaintenanceCreate, MaintenanceOut, MaintenanceUpdate
+from app.services.glpi_outbox_service import enqueue_followup, try_send_followup
 from app.services.maintenance_service import create_maintenance, delete_maintenance, update_maintenance
 
 
@@ -41,7 +42,6 @@ async def create_maintenance_endpoint(
 
     # Best-effort: comenta no chamado vinculado.
     try:
-        glpi = GlpiClient()
         msg_type = "preditiva" if created.maintenance_type == "Preventiva" else "corretiva"
 
         base_msg = f"Manutenção {msg_type} feita no devido computador"
@@ -53,7 +53,16 @@ async def create_maintenance_endpoint(
             if desc:
                 extra = f"\n\nObservação registrada:\n{desc}"
 
-        await glpi.add_ticket_followup(int(maintenance.glpi_ticket_id), base_msg + extra)
+        # Persistimos primeiro (outbox) para não perder a informação se o GLPI estiver fora.
+        outbox = enqueue_followup(
+            db,
+            ticket_id=int(maintenance.glpi_ticket_id),
+            content=base_msg + extra,
+            maintenance_id=int(created.id),
+        )
+
+        # Tenta enviar imediatamente; se falhar, permanece como pending e pode ser reenviado depois.
+        await try_send_followup(db, outbox.id)
     except Exception:
         # Não falha o registro local caso o GLPI esteja indisponível.
         pass

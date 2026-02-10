@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import time
 import logging
 import re
 import unicodedata
@@ -9,12 +11,48 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.auth import require_permission
+from app.core.config import settings
 from app.integrations.glpi_client import GlpiClient
 
 
 router = APIRouter(tags=["glpi"])
 
 logger = logging.getLogger(__name__)
+
+
+_tickets_cache_lock = asyncio.Lock()
+_tickets_cache: Dict[str, Dict[str, Any]] = {}
+
+
+def _cache_key(*, category: str, limit: int) -> str:
+    return f"cat={_norm(category)}|limit={int(limit)}"
+
+
+def _cache_get(key: str) -> Optional[Dict[str, Any]]:
+    entry = _tickets_cache.get(key)
+    if not entry:
+        return None
+    now = time.time()
+    ttl = int(getattr(settings, "GLPI_TICKETS_CACHE_TTL_SECONDS", 30) or 30)
+    stale_max = int(getattr(settings, "GLPI_TICKETS_CACHE_STALE_MAX_SECONDS", 600) or 600)
+    age = now - float(entry.get("ts") or 0)
+    if age <= ttl:
+        return entry
+    if age <= stale_max:
+        # Cache expirou para refresh, mas ainda serve em caso de falha do GLPI.
+        return entry
+    return None
+
+
+def _cache_is_fresh(entry: Dict[str, Any]) -> bool:
+    now = time.time()
+    ttl = int(getattr(settings, "GLPI_TICKETS_CACHE_TTL_SECONDS", 30) or 30)
+    age = now - float(entry.get("ts") or 0)
+    return age <= ttl
+
+
+def _cache_set(key: str, payload: Dict[str, Any]) -> None:
+    _tickets_cache[key] = {"ts": time.time(), **payload}
 
 
 def _norm(s: str) -> str:
@@ -60,12 +98,22 @@ async def list_open_tickets(
 
     Retorna somente campos essenciais: id (número) e título.
     """
+    cache_key = _cache_key(category=category, limit=limit)
+
+    async with _tickets_cache_lock:
+        cached = _cache_get(cache_key)
+
+    if cached and _cache_is_fresh(cached):
+        return {"items": cached.get("items") or [], "total": int(cached.get("total") or 0)}
+
     glpi = GlpiClient()
     try:
         # Busca um pouco mais para aumentar a chance de pegar os mais recentes,
         # mas retorna somente os últimos `limit`.
         tickets = await glpi.get_open_tickets(limit=max(200, limit))
     except Exception as e:
+        if cached:
+            return {"items": cached.get("items") or [], "total": int(cached.get("total") or 0)}
         raise HTTPException(status_code=502, detail=f"Falha ao consultar GLPI: {e}")
 
     try:
@@ -121,4 +169,7 @@ async def list_open_tickets(
     except Exception:
         pass
 
-    return {"items": items, "total": len(items)}
+    payload = {"items": items, "total": len(items)}
+    async with _tickets_cache_lock:
+        _cache_set(cache_key, payload)
+    return payload

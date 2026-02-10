@@ -16,6 +16,7 @@ from app.controllers.sync_controller import router as sync_router
 from app.controllers.users_controller import router as users_router
 from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
+from app.services.glpi_outbox_service import process_pending
 from app.services.user_service import ensure_default_admin
 
 
@@ -60,3 +61,27 @@ def _startup_seed_admin() -> None:
         ensure_default_admin(db)
     finally:
         db.close()
+
+
+@app.on_event("startup")
+async def _startup_outbox_worker() -> None:
+    if not bool(getattr(settings, "GLPI_OUTBOX_WORKER_ENABLED", False)):
+        return
+
+    import asyncio
+
+    interval = int(getattr(settings, "GLPI_OUTBOX_PROCESS_INTERVAL_SECONDS", 60) or 60)
+    batch = int(getattr(settings, "GLPI_OUTBOX_PROCESS_BATCH_SIZE", 25) or 25)
+
+    async def _loop() -> None:
+        while True:
+            db = SessionLocal()
+            try:
+                await process_pending(db, limit=batch)
+            except Exception:
+                pass
+            finally:
+                db.close()
+            await asyncio.sleep(max(5, interval))
+
+    asyncio.create_task(_loop())

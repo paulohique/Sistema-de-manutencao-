@@ -135,3 +135,24 @@ class User(Base):
     __table_args__ = (
         Index("idx_users_role", "role"),
     )
+
+
+class GlpiFollowupOutbox(Base):
+    __tablename__ = "glpi_followup_outbox"
+
+    id = Column(Integer, primary_key=True, index=True)
+    maintenance_id = Column(Integer, ForeignKey("maintenance_history.id", ondelete="SET NULL"), nullable=True, index=True)
+    ticket_id = Column(Integer, nullable=False, index=True)
+    content = Column(Text, nullable=False)
+
+    # pending | sent
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    last_error = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    sent_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("idx_outbox_status_created", "status", "created_at"),
+    )
