@@ -78,6 +78,7 @@ class MaintenanceHistory(Base):
         index=True,
     )
     maintenance_type = Column(String(20), nullable=False)
+    glpi_ticket_id = Column(Integer, nullable=True, index=True)
     description = Column(Text)
     performed_at = Column(DateTime, nullable=False)
     technician = Column(String(255))

@@ -1,4 +1,4 @@
-# GLPI Manutenções - Python API
+# Assinc Manutenções - Python API
 
 API FastAPI para integração com GLPI e gerenciamento de manutenções.
 

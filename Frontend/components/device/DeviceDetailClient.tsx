@@ -7,11 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { DeviceComponent, DeviceDetail, DeviceMaintenance, DeviceNote } from "@/models/device";
+import type { GlpiOpenTicketItem } from "@/models/glpi";
 import type { Permissions } from "@/models/auth";
 import {
   createDeviceNote,
@@ -22,6 +24,7 @@ import {
   getDeviceDetail,
   getDeviceMaintenance,
   getDeviceNotes,
+  listOpenGlpiTickets,
   updateDeviceNote
 } from "@/services/deviceDetailService";
 
@@ -65,6 +68,11 @@ export function DeviceDetailClient({
   const [maintNextDays, setMaintNextDays] = useState(365);
   const [savingMaint, setSavingMaint] = useState(false);
 
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [ticketsError, setTicketsError] = useState<string | null>(null);
+  const [tickets, setTickets] = useState<GlpiOpenTicketItem[]>([]);
+  const [maintTicketId, setMaintTicketId] = useState<string>("");
+
   const canAddNote = Boolean(permissions?.add_note);
   const canAddMaintenance = Boolean(permissions?.add_maintenance);
 
@@ -100,6 +108,24 @@ export function DeviceDetailClient({
     refreshAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deviceId]);
+
+  useEffect(() => {
+    if (!maintOpen) return;
+    if (ticketsLoading) return;
+    if (tickets.length > 0) return;
+
+    setTicketsLoading(true);
+    setTicketsError(null);
+    listOpenGlpiTickets()
+      .then((res) => {
+        setTickets(Array.isArray(res.items) ? res.items : []);
+      })
+      .catch((e: any) => {
+        setTicketsError(e?.message ?? "Falha ao carregar chamados do GLPI");
+      })
+      .finally(() => setTicketsLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maintOpen]);
 
   async function onCreateNote() {
     if (!noteContent.trim()) return;
@@ -141,12 +167,14 @@ export function DeviceDetailClient({
     if (!device) return;
     if (!maintDescription.trim()) return;
     if (!maintPerformedAt) return;
+    if (!maintTicketId) return;
 
     setSavingMaint(true);
     try {
       await createMaintenance({
         computer_id: Number(device.id),
         maintenance_type: maintType,
+        glpi_ticket_id: Number(maintTicketId),
         description: maintDescription,
         performed_at: new Date(maintPerformedAt).toISOString(),
         next_due_days: maintType === "Preventiva" ? maintNextDays : null
@@ -154,6 +182,7 @@ export function DeviceDetailClient({
       setMaintOpen(false);
       setMaintDescription("");
       setMaintPerformedAt("");
+      setMaintTicketId("");
       await refreshAll();
     } catch (e: any) {
       setError(e?.message ?? "Falha ao criar manutenção");
@@ -162,7 +191,7 @@ export function DeviceDetailClient({
     }
   }
 
-  const canSaveMaintenance = Boolean(maintPerformedAt && maintDescription.trim());
+  const canSaveMaintenance = Boolean(maintPerformedAt && maintDescription.trim() && maintTicketId);
 
   async function onDeleteMaintenance(id: number) {
     if (!confirm("Remover este registro de manutenção?")) return;
@@ -356,6 +385,7 @@ export function DeviceDetailClient({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Chamado</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead>Técnico</TableHead>
@@ -367,6 +397,7 @@ export function DeviceDetailClient({
                 <TableBody>
                   {maintenance.map((m) => (
                     <TableRow key={m.id}>
+                      <TableCell>{m.glpi_ticket_id ? `#${m.glpi_ticket_id}` : "—"}</TableCell>
                       <TableCell>{m.maintenance_type}</TableCell>
                       <TableCell>{fmtDate(m.performed_at)}</TableCell>
                       <TableCell>{m.technician ?? "—"}</TableCell>
@@ -385,7 +416,7 @@ export function DeviceDetailClient({
                   ))}
                   {maintenance.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-10">
+                      <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-10">
                         Sem manutenções ainda.
                       </TableCell>
                     </TableRow>
@@ -418,6 +449,44 @@ export function DeviceDetailClient({
                           <Input type="date" value={maintPerformedAt} onChange={(e) => setMaintPerformedAt(e.target.value)} />
                         </div>
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-semibold">Chamado GLPI (Computador) *</label>
+                      <div className="mt-2">
+                        <Select value={maintTicketId} onValueChange={setMaintTicketId}>
+                          <SelectTrigger className="h-11">
+                            <SelectValue
+                              placeholder={ticketsLoading ? "Carregando chamados..." : "Selecione um chamado"}
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ticketsLoading ? (
+                              <SelectItem value="__loading" disabled>
+                                Carregando...
+                              </SelectItem>
+                            ) : null}
+                            {ticketsError && !ticketsLoading ? (
+                              <SelectItem value="__error" disabled>
+                                Erro ao carregar
+                              </SelectItem>
+                            ) : null}
+                            {tickets.map((t) => (
+                              <SelectItem key={t.id} value={String(t.id)}>
+                                #{t.id}
+                              </SelectItem>
+                            ))}
+                            {!ticketsLoading && tickets.length === 0 ? (
+                              <SelectItem value="__empty" disabled>
+                                Nenhum chamado aberto encontrado
+                              </SelectItem>
+                            ) : null}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {ticketsError ? (
+                        <p className="mt-2 text-sm text-red-600">{ticketsError}</p>
+                      ) : null}
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

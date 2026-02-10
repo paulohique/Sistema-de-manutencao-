@@ -1,4 +1,4 @@
-﻿# GLPI Manutenções
+﻿# Assinc Manutenções
 
 Projeto full-stack criado para apoiar a empresa onde atuo: identifiquei uma necessidade real de **organizar o controle de manutenção de computadores** (preventiva/corretiva) e **gerar relatórios** de forma prática, usando o GLPI como fonte de verdade dos ativos.
 

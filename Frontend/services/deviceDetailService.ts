@@ -5,6 +5,8 @@ import type {
   DeviceNote
 } from "@/models/device";
 
+import type { GlpiOpenTicketsResponse } from "@/models/glpi";
+
 import { getToken } from "@/lib/auth";
 
 function getBaseUrl() {
@@ -115,6 +117,7 @@ export async function getDeviceMaintenance(deviceId: string): Promise<DeviceMain
 export async function createMaintenance(payload: {
   computer_id: number;
   maintenance_type: "Preventiva" | "Corretiva";
+  glpi_ticket_id: number;
   description: string;
   performed_at: string; // ISO
   technician?: string;
@@ -130,6 +133,13 @@ export async function createMaintenance(payload: {
   // if (res.status === 401) throw new Error("Não autenticado. Faça login para criar manutenção.");
   await throwIfNotOk(res, "Falha ao criar manutenção");
   return res.json() as Promise<DeviceMaintenance>;
+}
+
+export async function listOpenGlpiTickets(): Promise<GlpiOpenTicketsResponse> {
+  const url = `${getBaseUrl()}/api/glpi/tickets/open?category=computador&limit=20`;
+  const res = await fetch(url, { cache: "no-store", headers: authHeaders() });
+  await throwIfNotOk(res, "Falha ao listar chamados GLPI");
+  return res.json();
 }
 
 export async function updateMaintenance(

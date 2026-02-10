@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.auth import require_permission
+from app.integrations.glpi_client import GlpiClient
 
 # Auth temporariamente desabilitada para rotas de escrita (manutenção).
 # Para reativar no futuro, reintroduza `Depends(get_current_user)` nas rotas POST/PUT/DELETE.
@@ -37,6 +38,16 @@ async def create_maintenance_endpoint(
     created = create_maintenance(db, maintenance)
     if not created:
         raise HTTPException(status_code=404, detail="Computador não encontrado")
+
+    # Best-effort: comenta no chamado vinculado.
+    try:
+        glpi = GlpiClient()
+        msg_type = "preditiva" if created.maintenance_type == "Preventiva" else "corretiva"
+        await glpi.add_ticket_followup(int(maintenance.glpi_ticket_id), f"Manutenção {msg_type} feita no devido computador")
+    except Exception:
+        # Não falha o registro local caso o GLPI esteja indisponível.
+        pass
+
     return created
 
 

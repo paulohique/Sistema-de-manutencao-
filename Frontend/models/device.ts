@@ -62,6 +62,7 @@ export type DeviceMaintenance = {
   id: number;
   computer_id: number;
   maintenance_type: "Preventiva" | "Corretiva";
+  glpi_ticket_id?: number | null;
   description: string;
   performed_at: string;
   technician: string | null;

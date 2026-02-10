@@ -14,7 +14,7 @@ router = APIRouter(tags=["health"])
 async def health_check():
     return {
         "status": "healthy",
-        "service": "GLPI Manutenções API",
+        "service": "Assinc Manutenções API",
         "auth_enabled": bool(settings.AUTH_ENABLED),
         "timestamp": datetime.utcnow().isoformat(),
     }

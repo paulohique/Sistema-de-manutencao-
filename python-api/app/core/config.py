@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     # Database
     DB_HOST: str = "localhost"
     DB_PORT: int = 3306
-    DB_USER: str = "root"
-    DB_PASSWORD: str = "root"
+    DB_USER: str = ""
+    DB_PASSWORD: str = ""
     DB_NAME: str = "glpi_manutencao"
 
     # GLPI API

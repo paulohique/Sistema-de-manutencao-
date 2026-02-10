@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "GLPI Manutenções",
+  title: "Assinc Manutenções",
   description: "Controle de manutenção preventiva e corretiva (GLPI)"
 };
 
@@ -33,7 +33,7 @@ export default function RootLayout({
                   </div>
                   <div>
                     <h1 className="text-3xl font-bold tracking-tight">
-                      GLPI Manutenções
+                      Assinc Manutenções
                     </h1>
                     <p className="mt-1 text-sm text-blue-100">
                       Controle de manutenção preventiva e corretiva dos dispositivos integrados ao GLPI

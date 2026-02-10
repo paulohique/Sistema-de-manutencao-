@@ -23,6 +23,7 @@ def create_maintenance(db: Session, maintenance: MaintenanceCreate) -> Optional[
     maintenance_record = MaintenanceHistory(
         computer_id=maintenance.computer_id,
         maintenance_type=maintenance.maintenance_type,
+        glpi_ticket_id=maintenance.glpi_ticket_id,
         description=maintenance.description,
         performed_at=maintenance.performed_at,
         technician=maintenance.technician,

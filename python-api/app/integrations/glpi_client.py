@@ -15,10 +15,7 @@ class GlpiClient:
         self.session_token: Optional[str] = None
 
     async def _get(self, path: str, *, params: Optional[Dict[str, Any]] = None) -> Any:
-        """Cliente GLPI SOMENTE-LEITURA.
-
-        Este método existe para deixar explícito que a aplicação não faz POST/PUT/PATCH/DELETE no GLPI.
-        """
+        """Requisição GET ao GLPI."""
         if not self.session_token and not path.endswith("/initSession"):
             await self.init_session()
 
@@ -32,6 +29,31 @@ class GlpiClient:
             response = await client.get(f"{self.base_url}{path}", headers=headers, params=params)
             response.raise_for_status()
             return response.json()
+
+    async def _post(self, path: str, *, json: Optional[Dict[str, Any]] = None) -> Any:
+        """Requisição POST ao GLPI.
+
+        Observação: originalmente a integração era somente-leitura. Este método existe
+        para suportar casos de uso explícitos (ex.: adicionar followup em Ticket).
+        """
+        if not self.session_token:
+            await self.init_session()
+
+        headers: Dict[str, str] = {
+            "App-Token": self.app_token,
+            "Session-Token": str(self.session_token),
+            "Content-Type": "application/json",
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{self.base_url}{path}", headers=headers, json=json)
+            response.raise_for_status()
+            if not response.content:
+                return None
+            try:
+                return response.json()
+            except Exception:
+                return response.text
 
     async def init_session(self) -> str:
         """Inicializa sessão com GLPI API"""
@@ -59,6 +81,68 @@ class GlpiClient:
             },
         )
         return data if isinstance(data, list) else []
+
+    async def get_open_tickets(self, *, limit: int = 200) -> List[Dict[str, Any]]:
+        """Busca tickets abertos (best-effort).
+
+        A API do GLPI não tem um filtro universal simples via /Ticket; por isso buscamos
+        um range inicial e filtramos em memória.
+        """
+        limit = max(1, min(int(limit), 500))
+
+        base_params: Dict[str, Any] = {
+            "range": f"0-{limit - 1}",
+            "expand_dropdowns": "true",
+        }
+
+        # GLPI normalmente suporta sort/order; isso permite pegar os tickets mais recentes.
+        # Se a instalação não suportar, faz fallback para o comportamento anterior.
+        try:
+            data = await self._get(
+                "/Ticket",
+                params={
+                    **base_params,
+                    "sort": "id",
+                    "order": "DESC",
+                },
+            )
+        except Exception:
+            data = await self._get("/Ticket", params=base_params)
+
+        return data if isinstance(data, list) else []
+
+    async def add_ticket_followup(self, ticket_id: int, content: str) -> None:
+        """Adiciona um followup/comentário em um ticket (best-effort)."""
+        ticket_id = int(ticket_id)
+        content = (content or "").strip()
+        if ticket_id <= 0 or not content:
+            return
+
+        # Prefer: criar ITILFollowup diretamente (formato mais comum nas versões atuais)
+        payload_a = {
+            "input": {
+                "itemtype": "Ticket",
+                "items_id": ticket_id,
+                "content": content,
+            }
+        }
+
+        try:
+            await self._post("/ITILFollowup", json=payload_a)
+            return
+        except httpx.HTTPStatusError:
+            pass
+
+        # Fallback: endpoint aninhado no ticket (algumas instalações usam essa rota)
+        payload_b = {"input": {"content": content}}
+        try:
+            await self._post(f"/Ticket/{ticket_id}/ITILFollowup", json=payload_b)
+        except httpx.HTTPStatusError:
+            # Último fallback: alguns GLPIs expõem /TicketFollowup
+            try:
+                await self._post(f"/Ticket/{ticket_id}/TicketFollowup", json=payload_b)
+            except httpx.HTTPStatusError:
+                return
 
     async def get_computer(self, computer_id: int) -> Dict[str, Any]:
         """Busca detalhes de um computador"""

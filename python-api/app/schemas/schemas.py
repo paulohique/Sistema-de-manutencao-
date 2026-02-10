@@ -60,6 +60,7 @@ class ComponentOut(ComponentBase):
 class MaintenanceCreate(BaseModel):
     computer_id: int
     maintenance_type: str = Field(..., pattern="^(Preventiva|Corretiva)$")
+    glpi_ticket_id: int = Field(..., ge=1)
     description: str = Field(..., min_length=1)
     performed_at: datetime
     technician: Optional[str] = None
@@ -96,6 +97,7 @@ class MaintenanceOut(BaseModel):
     id: int
     computer_id: int
     maintenance_type: str
+    glpi_ticket_id: Optional[int] = None
     description: str
     performed_at: datetime
     technician: Optional[str]
